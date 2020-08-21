@@ -1,0 +1,114 @@
+import { createSocket } from "dgram";
+
+export type Options<O, I> = {
+  out: O;
+  input: I;
+  varMap: Record<number, keyof O | keyof I>;
+  port?: number;
+  onChange?: (name: string, value: any) => void;
+};
+
+const defaultOptions: Partial<Options<any, any>> = {
+  port: 1202,
+  onChange: (change) => {},
+};
+
+export const connect = <O extends {}, I extends {}>(options: Options<O, I>) => {
+  type PlcInVars = I;
+  type PlcOutVars = O;
+  type PlcState = PlcOutVars & PlcInVars;
+  type VarsOut = keyof PlcOutVars;
+  type VarsIn = keyof PlcInVars;
+  type Vars = VarsOut | VarsIn;
+  const { out, input, varMap } = options;
+
+  const opt: Required<Options<O, I>> = {
+    ...defaultOptions,
+    ...options,
+  } as Required<Options<O, I>>;
+  const nodeId = "002d5333";
+
+  const state: PlcState = {
+    ...out,
+    ...input,
+  };
+
+  let queued_send: Partial<PlcInVars> = {};
+  const sendCounter: Record<Vars, number> = Object.keys(state).reduce(
+    (acc, n) => ({ ...acc, [n]: -1 }),
+    {} as Record<Vars, number>
+  );
+
+  const getVarName = (id: number): Vars | undefined => varMap[id];
+  const getCounter = (key: Vars) => {
+    sendCounter[key]++;
+    const nrText = ("0000000" + sendCounter[key].toString(16)).substr(-8);
+
+    return (
+      nrText.substr(6, 2) +
+      nrText.substr(4, 2) +
+      nrText.substr(2, 2) +
+      nrText.substr(0, 2)
+    );
+  };
+
+  //const sendValues: VarsIn[] = Object.keys(input);
+  const triggerSend = () => {
+    (Object.keys(queued_send) as VarsIn[])
+      .map((toSend) => ({
+        id: Object.entries(varMap)
+          .filter(([, name]) => name === toSend)
+          .map(([id]) => id)
+          .unshift()
+          .toString(16),
+        counter: getCounter(toSend),
+        // @ts-ignore
+        value: queued_send[toSend] === true ? "01" : "00",
+      }))
+      .map(({ id, counter, value }) =>
+        Buffer.from(
+          `${nodeId}0000000001000${id}0001001500${counter}${value}`,
+          "hex"
+        )
+      )
+      .forEach((cmd) => socket.send(cmd, 1202, "192.168.0.100"));
+
+    queued_send = {};
+  };
+
+  const socket = createSocket("udp4", (msg) => {
+    const data = msg.toString("hex");
+    const varId = parseInt(data.substr(18, 4), 16);
+    const value = parseInt(data.substr(40, 2), 16);
+
+    const varName = getVarName(varId);
+    if (varName) {
+      const oldValue = state[varName];
+      //@ts-ignore
+      state[varName] = value !== 0;
+
+      if (oldValue !== state[varName]) {
+        opt.onChange(`${varName}`, state[varName]);
+      }
+    }
+    //console.clear()
+    //console.log(msg.toString("hex"));
+  });
+
+  socket.bind(opt.port);
+
+  const setValue = (name: VarsIn, value: I[typeof name]) => {
+    queued_send[name] = value;
+    triggerSend();
+    console.log(name);
+  };
+  const getValue = (name: VarsOut): O[typeof name] => {
+    console.log(name);
+    return state[name];
+  };
+
+  return {
+    setValue,
+    getValue,
+  };
+};
