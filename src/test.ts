@@ -1,14 +1,15 @@
 import { client } from './index'
 import * as t from './types'
+import fs from 'fs'
 
 const netVar = client('192.168.0.100')
 
 const list1 = netVar.openList(
   { listId: 1, onChange: console.log },
   {
-    emergency: t.boolean(2),
-    working: t.word(3),
-    counter: t.dWore(4, 1425),
+    emergency: t.boolean(1),
+    working: t.word(2),
+    counter: t.dWore(3, 1425),
   },
 )
 
@@ -18,28 +19,7 @@ console.log(list1.get('emergency'))
 console.log(list1.get('working'))
 console.log(list1.get('counter'))
 
-// const list3 = netVar.openList(3, console.log, t.nvBoolean(0, "enabled", true));
-
-// process.stdin.on("data", (msg) => {
-//   const i = msg.toString().trim();
-//   switch (i) {
-//     case "1":
-//       list3.setValue("enabled", true);
-//       break;
-//     case "2":
-//       list3.setValue("enabled", false);
-//       break;
-//     case "r1":
-//       console.log(list3.getValue("enabled"));
-//       break;
-//     case "r2":
-//       console.log(list1.getValue("emergency"));
-//       break;
-//     case "r3":
-//       console.log(list1.getValue("working"));
-//       break;
-//   }
-// });
+fs.writeFileSync('definiting.gvl', list1.definition)
 
 // 000000010000000001000000010015003e00000001
 //

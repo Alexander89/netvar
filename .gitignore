@@ -1,5 +1,2 @@
 node_modules
-build
 dist
-.cache
-parcel-debug-*

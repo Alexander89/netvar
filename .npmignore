@@ -2,3 +2,7 @@ dist
 src/test.ts
 src/api.ts_v0
 *tar.gz
+.prettierrc.js
+.gitignore
+.eslintrc.js
+.editorconfig

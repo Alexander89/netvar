@@ -1,12 +1,11 @@
 import { createSocket } from 'dgram'
 import * as t from './types'
-import { access } from 'fs'
-
-export * from './types'
 
 export type Options = {
   listId: number
   onChange?: (name: string, value: any) => void
+  cyclic?: boolean
+  cycleInterval?: number
 }
 
 type OnMessage = (varId: number, value: Buffer) => void
@@ -26,34 +25,6 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
   })
 
   socket.bind(port)
-
-  // type Ret<Vars extends t.Types<string>> = {
-  //   setValue: (
-  //     name: (Vars & { name: Vars["name"] })["name"],
-  //     value: (Vars | { name: typeof name; value: undefined })["value"]
-  //   ) => void;
-  //   getValue: (
-  //     name: Vars["name"]
-  //   ) => (Vars & {
-  //     name: Vars["name"];
-  //   })["value"];
-  // };
-  /*
-  function list<
-    Name1 extends string,
-    Var1 extends t.Types<Name1>,
-    Name2 extends string,
-    Var2 extends t.Types<Name2>,
-    Vars = {
-      [name: string]: Var1["value"];
-      [name: string]: Var2["value"];
-    }
-  >(options: Options, v1: Var1, v2: Var2) {
-     ;
-  function list<Vars extends t.Types<T>, T extends string>(
-    options: Options<Vars>,
-    ...vars: Vars[]
-  ): Ret<Vars, T>  */
 
   const mkValue = (def: t.Types): { data: string; lng: number } => {
     const out = Buffer.alloc(100)
@@ -98,13 +69,20 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     set: <K extends keyof T>(name: K, value: T[K]['value']) => void
     setMore: (set: { [K in keyof T]?: T[K]['value'] }) => void
     get: <K extends keyof T>(name: K) => T[K]['value']
+    definition: string
+    dispose: () => void
   }
 
   const list = <T extends { [k: string]: t.Types }>(options: Options, vars: T): Return<T> => {
-    const { listId, onChange } = options
+    const { listId, onChange, cyclic, cycleInterval } = options
     const nodeId = '002d5333'
 
     let state = { ...vars }
+    let cycleIntervalTimer: NodeJS.Timeout | undefined = undefined
+    if (cyclic) {
+      const interval = cycleInterval || 1000
+      cycleIntervalTimer = setInterval(() => send(state), interval)
+    }
 
     const getVarName = (idx: number): keyof T | undefined => {
       return Object.entries(vars)
@@ -193,6 +171,32 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     }
     listeners.push({ listId, cb: onMessage })
 
+    const definition = `<GVL>
+  <Declarations><![CDATA[VAR_GLOBAL
+${Object.entries(state)
+  .sort((a, b) => a[1].idx - b[1].idx)
+  .map(([name, def]) => `        ${name}: ${def.type};`)
+  .join('\n')}
+END_VAR]]></Declarations>
+  <NetvarSettings Protocol="UDP">
+    <ListIdentifier>${listId}</ListIdentifier>
+    <Pack>False</Pack>
+    <Checksum>False</Checksum>
+    <Acknowledge>False</Acknowledge>
+    <CyclicTransmission>${options.cyclic ? 'True' : 'False'}<CyclicTransmission>
+    <TransmissionOnChange>True</TransmissionOnChange>
+    <TransmissionOnEvent>False</TransmissionOnEvent>
+    <Interval>T#${options.cycleInterval || 9000000}ms</Interval>
+    <MinGap>T#1ms</MinGap>
+    <EventVariable>
+    </EventVariable>
+    <ProtocolSettings>
+      <ProtocolSetting Name="Broadcast Adr." Value="${endpoint}"/>
+      <ProtocolSetting Name="Port" Value="${port}"/>
+    </ProtocolSettings>
+  </NetvarSettings>
+</GVL>`
+
     return {
       set: (name, value) => {
         state[name].value = value
@@ -213,84 +217,10 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         send(newSet)
       },
       get: (name) => state[name].value,
+      definition,
+      dispose: () => cycleIntervalTimer && clearInterval(cycleIntervalTimer),
     }
   }
-  /*
-  function list<T extends { [k: string]: t.Types }>(
-    options: Options,
-    vars: {
-      [K in keyof T]: T[K];
-    }
-  ) {
-    type a = Record<>;
-
-
-    let queued_send: Partial<Vars> = {};
-
-
-    console.log(state, queued_send, sendCounter);
-
-
-
-
-    //const sendValues: VarsIn[] = Object.keys(input);
-    const triggerSend = () => {
-      queued_send
-        .map((toSend) => ({
-          id: Object.entries(varMap)
-            .filter(([, name]) => name === toSend.name)
-            .map((v) => +v[0])
-            .pop(),
-          counter: getCounter(toSend.name),
-          // @ts-ignore
-          value: queued_send[toSend] === true ? "01" : "00",
-        }))
-        .filter(({ id }) => id !== undefined)
-        .map(({ id, counter, value }) =>
-          Buffer.from(
-            `${nodeId}000000000${listId}000${id!.toString(
-              16
-            )}0001001500${counter}${value}`,
-            "hex"
-          )
-        )
-        .forEach((cmd) => socket.send(cmd, 1202, endpoint));
-
-      queued_send = [];
-    };
-
-
-    listeners.push({ listId, cb: onMessage });
-
-    type Var = Var1 | Var2;
-    type setType<V extends Var> = (name: V["name"], value: V["value"]) => void;
-    type getType<V extends Var> = (name: V["name"]) => V["value"];
-    const createValue = <T extends Var>(): {
-      set: setType<T>;
-      get: getType<T>;
-    } => ({
-      set: (name, value) => {
-        //@ts-ignore
-        const newValue = { ...state[name] };
-        newValue.value = value;
-
-        //@ts-ignore
-        queued_send[name] = newValue;
-        triggerSend();
-      },
-      //@ts-ignore
-      get: (name) => state[name].value,
-    });
-
-    type List = {};
-    const connector = vars.map((v) => ({
-      [v.name]: createValue(),
-    }));
-    return {
-      setValue,
-      getValue,
-    };
-  } */
 
   return {
     openList: list,
