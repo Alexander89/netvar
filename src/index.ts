@@ -18,12 +18,13 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
   const listeners: ListenerList = []
 
   const socket = createSocket('udp4', (msg) => {
+    if (msg.length < 20) {
+      return
+    }
     const data = msg.toString('hex')
     const varId = parseInt(data.substr(18, 4), 16)
-    const value = msg.subarray(40)
     const listId = parseInt(data.substr(16, 2), 16)
-
-    listeners.filter((l) => l.listId == listId).forEach((l) => l.cb(varId, value))
+    listeners.filter((l) => l.listId == listId).forEach((l) => l.cb(varId, msg.subarray(20)))
   })
 
   socket.bind(port)
