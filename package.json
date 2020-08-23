@@ -1,7 +1,7 @@
 {
   "name": "netvar",
   "version": "1.0.0",
-  "description": "communicate to your codeSys plc over Network Variable Lists as easy as possible",
+  "description": "Communicate to your codeSys plc over Network Variable Lists easily",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "keywords": [

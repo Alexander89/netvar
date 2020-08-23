@@ -1,5 +1,4 @@
-import { client } from './index'
-import * as t from './types'
+import { client, t } from './index'
 import fs from 'fs'
 
 const netVar = client('192.168.0.100')

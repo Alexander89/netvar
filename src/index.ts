@@ -1,6 +1,8 @@
 import { createSocket } from 'dgram'
 import * as t from './types'
 
+export * as t from './types'
+
 export type Options = {
   listId: number
   onChange?: (name: string, value: any) => void

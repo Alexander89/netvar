@@ -1,16 +1,16 @@
 # CoDeSys NetworkVariableLists
 
-To exchange Global variables with a CoDeSys PLC is very easy. Just create a NetworkVariableList and add the variables to it. With this package you can receive this UDP network packages and interpret them.
+To exchange global variables with a CoDeSys-PLC is very easy. Just create a NetworkVariableList _(NVL (Sender))_ and add your variables to the list. With this package you can receive this UDP-packages and parse them.
 
-To send Data to the PLC, you can use the definition made from this package and create a NVL (receiver) on the PLC.
+To send data to a CoDeSys-PLC, you define a new list with this node-module and use the generated `definition` to define the network variable list in your PLC as NVL (receiver).
 
-## How it works
+## How to do
 
-The package is type-save and will hint you on your inputs. You can use it in Typescript and JavaScript. Please be careful with the types when you use it with JavaScript
+The package is type-save and will hint you on your inputs. You can use it in Typescript and JavaScript. Please be careful with the types when you use it with JavaScript.
 
-### client connect
+### Create a new client
 
-Create a new client from the `netvar` package
+Create a new client with the `netvar` package
 
 ```typescript
 import { client } from 'netvar'
@@ -20,19 +20,19 @@ const netVar1 = client('192.168.0.123')
 const netVar2 = client('192.168.0.255', 1202)
 ```
 
-### Connect to list
+### Define a new or connect to existing list
 
-And attach the client to a list, defined in your PLC
+Define a new variable list or enter the definition of an existing network variable list. The names do not matter for the communication and can be adjusted to your naming conventions.
 
-**_Note:_** If you add a cnChange callback you get **all** updates to this list live from the network.
+**_Note:_** If you add a `onChange` callback you get **all** updates on this list live from the network.
 
 ```typescript
 const list1 = netVar.openList(
   { listId: 1 },
   {
-    emergency: t.boolean(1),
-    working: t.word(2),
-    counter: t.dWore(3, 1425),
+    emergency: t.boolean(0),
+    working: t.word(1),
+    counter: t.dWore(2, 1425),
   },
 )
 
@@ -54,7 +54,9 @@ const list2 = netVar.openList({
 
 ### Get value
 
-Read value from the list. This value will be your initial values till you change them or you get some information from a other client
+Read the value of a property from the list.
+
+This value will be your initial values until you change it or you get different information over the network.
 
 ```typescript
 const value = list1.getValue('working')
@@ -63,7 +65,7 @@ console.log(value)
 
 ### Set value
 
-Set value to the list and send it to the PLC / other listeners
+Set a new value to a specific property from the list and send it to the PLC (or other peers)
 
 ```typescript
 list1.setValue('working', false)
@@ -71,9 +73,33 @@ list1.setValue('working', false)
 
 ### Get Definition
 
-To set the peer configuration in the PLC export the list definition
+Build the Definition to set the network variable list configuration on a PLC (receiver)
 
 ```typescript
 import fs from 'fs'
 fs.writeFileSync('definiting.gvl', list1.definition)
+```
+
+---
+
+## Available data types
+
+| Type      | Node    | PLC     |
+| --------- | ------- | ------- |
+| t.boolean | boolean | BOOLEAN |
+| t.word    | number  | WORD    |
+| t.string  | string  | STRING  |
+| t.byte    | number  | BYTE    |
+| t.dWore   | number  | DWORE   |
+| t.time    | number  | TIME    |
+| t.float   | number  | FLOAT   |
+| t.double  | number  | DOUBLE  |
+
+Example:
+
+```typescript
+import { t } from 'netvar'
+const vars = {
+  test: t.float(1, Math.PI),
+}
 ```

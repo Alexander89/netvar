@@ -49,7 +49,7 @@ export const float = (idx: number, value: number = 0): NvFloat => ({
   type: 'FLOAT',
   value,
 })
-export const Double = (idx: number, value: number = 0): NvDouble => ({
+export const double = (idx: number, value: number = 0): NvDouble => ({
   idx,
   type: 'DOUBLE',
   value,
