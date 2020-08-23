@@ -120,10 +120,10 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         .map(({ idx, lng, counter, data }) =>
           Buffer.from(`${nodeId}000000000${listId}000${idx}000100${lng}${counter}${data}`, 'hex'),
         )
-        .map((a) => {
-          console.log(a.toString('hex'))
-          return a
-        })
+        // .map((a) => {
+        //   console.log(a.toString('hex'))
+        //   return a
+        // })
         .forEach((cmd) => socket.send(cmd, 1202, endpoint))
     }
     const onMessage = (varId: number, data: Buffer) => {
