@@ -32,7 +32,7 @@ const list1 = netVar.openList(
   {
     emergency: t.boolean(0),
     working: t.word(1),
-    counter: t.dWore(2, 1425),
+    counter: t.dWore(2, 4242),
   },
 )
 
@@ -47,7 +47,7 @@ const list2 = netVar.openList({
   {
     Active: t.boolean(0),
     Next_Task: t.string(1, 'nut'),
-    Speed: t.float(2, 0.15625),
+    Speed: t.float(2, Math.PI),
   },
 )
 ```
@@ -59,16 +59,22 @@ Read the value of a property from the list.
 This value will be your initial values until you change it or you get different information over the network.
 
 ```typescript
-const value = list1.getValue('working')
+const value = list1.get('working')
 console.log(value)
 ```
 
 ### Set value
 
-Set a new value to a specific property from the list and send it to the PLC (or other peers)
+Set a one new value to a specific property from the list or set a number of new values.
+
+The new values are send to the other peers (PLC).
 
 ```typescript
-list1.setValue('working', false)
+list1.set('working', false)
+list1.setMore({
+  working: false,
+  counter: 42,
+})
 ```
 
 ### Get Definition
