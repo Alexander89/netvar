@@ -186,7 +186,7 @@ END_VAR]]></Declarations>
     <Pack>False</Pack>
     <Checksum>False</Checksum>
     <Acknowledge>False</Acknowledge>
-    <CyclicTransmission>${options.cyclic ? 'True' : 'False'}<CyclicTransmission>
+    <CyclicTransmission>${options.cyclic ? 'True' : 'False'}</CyclicTransmission>
     <TransmissionOnChange>True</TransmissionOnChange>
     <TransmissionOnEvent>False</TransmissionOnEvent>
     <Interval>T#${options.cycleInterval || 9000000}ms</Interval>
