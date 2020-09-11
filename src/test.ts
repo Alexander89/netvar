@@ -1,5 +1,6 @@
 import { client, t } from './index'
 import fs from 'fs'
+import { createSocket } from 'dgram'
 
 const netVar = client('192.168.0.100')
 
@@ -24,21 +25,15 @@ console.log(list1.get('wText'))
 
 fs.writeFileSync('definiting.gvl', list1.definition)
 
-// 000000010000000001000000010015003e00000001
-//
+// const b = Buffer.from([0x00, 0x2d, 0x53, 0x33, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x05, 0x00, 0x01, 0x00, 0x17, 0x00, 0x3e, 0x00, 0x00, 0x00, 0x41, 0x42, 0x41, 0x42, 0x00, 0x00])
+// createSocket('udp4', (input) => {}).send(b, 1202, 'localhost')
 
-// 0          1           2            3          4
-// 01234567 89012345 67 8901 23 45 67890123 45678901
-// 002d5333 00000000 01 0002 00 01 0015002a 00000001
-// 002d5333 00000000 01 0005 00 01 00150009 00000000
+// 0          1           2            3           4
+// 01234567 89012345 6789 0123 4567 8901 23456789 01
+// 002d5333 00000000 0100 0200 0100 1500 2a000000 01
+// 002d5333 00000000 0100 0500 0100 1500 09000000 00
 // 0 Task_DONE
 // 1 Enabled
-// 2 Active
-// 3 Task_queued
-// 4 More_Task
-// 5 Emergency
-// 6 On_Off
-// 7 Working
 
 // startup :
 // 002d53330000000001000000010015000100000000

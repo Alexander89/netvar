@@ -45,15 +45,18 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
       case 'TIME':
         lng = out.writeInt32LE(def.value)
         break
-      case 'FLOAT':
+      case 'REAL':
         lng = out.writeFloatLE(def.value)
         break
-      case 'DOUBLE':
+      case 'LREAL':
         lng = out.writeDoubleLE(def.value)
         break
       case 'STRING':
         lng = out.write(def.value, 'ascii')
         lng += out.writeInt8(0)
+      case 'WSTRING':
+        lng = out.write(def.value, 'utf16le')
+        lng += out.writeInt16LE(0)
         break
     }
 
@@ -148,18 +151,21 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
             break
           case 'STRING': {
             let length = data.findIndex((c) => c === 0)
-            selVar.value = String.fromCharCode(
-              ...data.subarray(0, length === -1 ? undefined : length),
-            )
+            selVar.value = data.toString('ascii', 0, length === -1 ? undefined : length)
+            break
+          }
+          case 'WSTRING': {
+            let length = data.findIndex((c) => c === 0)
+            selVar.value = data.toString('utf16le', 0, length === -1 ? undefined : length)
             break
           }
           case 'TIME':
             selVar.value = data.readInt32LE()
             break
-          case 'FLOAT':
+          case 'REAL':
             selVar.value = data.readFloatLE()
             break
-          case 'DOUBLE':
+          case 'LREAL':
             selVar.value = data.readDoubleLE()
             break
           default: {

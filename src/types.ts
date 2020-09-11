@@ -5,8 +5,6 @@ type NvWString = { idx: number; type: 'WSTRING'; value: string }
 type NvByte = { idx: number; type: 'BYTE'; value: number }
 type NvDWore = { idx: number; type: 'DWORD'; value: number }
 type NvTime = { idx: number; type: 'TIME'; value: number }
-type NvFloat = { idx: number; type: 'FLOAT'; value: number }
-type NvDouble = { idx: number; type: 'DOUBLE'; value: number }
 type NvReal = { idx: number; type: 'REAL'; value: number }
 type NvLReal = { idx: number; type: 'LREAL'; value: number }
 
@@ -18,8 +16,6 @@ export type Types =
   | NvByte
   | NvDWore
   | NvTime
-  | NvFloat
-  | NvDouble
   | NvReal
   | NvLReal
 
