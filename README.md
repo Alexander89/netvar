@@ -47,7 +47,7 @@ const list2 = netVar.openList({
   {
     Active: t.boolean(0),
     Next_Task: t.string(1, 'nut'),
-    Speed: t.float(2, Math.PI),
+    Speed: t.real(2, Math.PI),
   },
 )
 ```
@@ -95,17 +95,18 @@ fs.writeFileSync('definiting.gvl', list1.definition)
 | t.boolean | boolean | BOOLEAN |
 | t.word    | number  | WORD    |
 | t.string  | string  | STRING  |
+| t.wString | string  | STRING  |
 | t.byte    | number  | BYTE    |
 | t.dWore   | number  | DWORE   |
 | t.time    | number  | TIME    |
-| t.float   | number  | FLOAT   |
-| t.double  | number  | DOUBLE  |
+| t.real    | number  | REAL    |
+| t.lReal   | number  | LREAL   |
 
 Example:
 
 ```typescript
 import { t } from 'netvar'
 const vars = {
-  test: t.float(1, Math.PI),
+  test: t.real(1, Math.PI),
 }
 ```
