@@ -1,13 +1,23 @@
 type NvBoolean = { idx: number; type: 'BOOL'; value: boolean }
 type NvWord = { idx: number; type: 'WORD'; value: number }
 type NvString = { idx: number; type: 'STRING'; value: string }
+type NvWString = { idx: number; type: 'WSTRING'; value: string }
 type NvByte = { idx: number; type: 'BYTE'; value: number }
 type NvDWore = { idx: number; type: 'DWORD'; value: number }
 type NvTime = { idx: number; type: 'TIME'; value: number }
-type NvFloat = { idx: number; type: 'FLOAT'; value: number }
-type NvDouble = { idx: number; type: 'DOUBLE'; value: number }
+type NvReal = { idx: number; type: 'REAL'; value: number }
+type NvLReal = { idx: number; type: 'LREAL'; value: number }
 
-export type Types = NvBoolean | NvWord | NvString | NvByte | NvDWore | NvTime | NvFloat | NvDouble
+export type Types =
+  | NvBoolean
+  | NvWord
+  | NvString
+  | NvWString
+  | NvByte
+  | NvDWore
+  | NvTime
+  | NvReal
+  | NvLReal
 
 export const boolean = (idx: number, value: boolean = false): NvBoolean => ({
   idx,
@@ -24,6 +34,12 @@ export const word = (idx: number, value: number = 0): NvWord => ({
 export const string = (idx: number, value: string = ''): NvString => ({
   idx,
   type: 'STRING',
+  value,
+})
+
+export const wString = (idx: number, value: string = ''): NvWString => ({
+  idx,
+  type: 'WSTRING',
   value,
 })
 
@@ -44,13 +60,20 @@ export const time = (idx: number, value: number = 0): NvTime => ({
   type: 'TIME',
   value,
 })
-export const float = (idx: number, value: number = 0): NvFloat => ({
+
+export const real = (idx: number, value: number = 0): NvReal => ({
   idx,
-  type: 'FLOAT',
+  type: 'REAL',
   value,
 })
-export const double = (idx: number, value: number = 0): NvDouble => ({
+
+export const lReal = (idx: number, value: number = 0): NvLReal => ({
   idx,
-  type: 'DOUBLE',
+  type: 'LREAL',
   value,
 })
+
+/** @deprecated since V 1.0.5 */
+export const float = real
+/** @deprecated since V 1.0.5 */
+export const double = lReal
