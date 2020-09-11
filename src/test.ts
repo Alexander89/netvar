@@ -9,14 +9,18 @@ const list1 = netVar.openList(
     emergency: t.boolean(1),
     working: t.word(2),
     counter: t.dWore(3, 1425),
+    text: t.string(4, 'Hello PLC'),
+    wText: t.wString(5, 'Hello い'),
   },
 )
 
 list1.set('emergency', true)
-list1.setMore({ emergency: true, working: 1 })
+list1.setMore({ emergency: true, working: 1, text: 'Hello PLC newText' })
 console.log(list1.get('emergency'))
 console.log(list1.get('working'))
 console.log(list1.get('counter'))
+console.log(list1.get('text'))
+console.log(list1.get('wText'))
 
 fs.writeFileSync('definiting.gvl', list1.definition)
 
