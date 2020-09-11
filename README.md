@@ -95,7 +95,7 @@ fs.writeFileSync('definiting.gvl', list1.definition)
 | t.boolean | boolean | BOOLEAN |
 | t.word    | number  | WORD    |
 | t.string  | string  | STRING  |
-| t.wString | string  | STRING  |
+| t.wString | string  | WSTRING |
 | t.byte    | number  | BYTE    |
 | t.dWore   | number  | DWORE   |
 | t.time    | number  | TIME    |
