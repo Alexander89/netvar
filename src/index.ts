@@ -30,7 +30,7 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
   socket.bind(port)
 
   const mkValue = (def: t.Types): { data: string; lng: number } => {
-    const out = Buffer.alloc(100)
+    const out = Buffer.alloc(250)
     let lng = 0
     switch (def.type) {
       case 'BOOL':
@@ -53,10 +53,11 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         break
       case 'STRING':
         lng = out.write(def.value, 'ascii')
-        lng += out.writeInt8(0)
+        lng = out.writeInt8(0, lng)
+        break
       case 'WSTRING':
         lng = out.write(def.value, 'utf16le')
-        lng += out.writeInt16LE(0)
+        lng = out.writeInt16LE(0, lng)
         break
     }
 

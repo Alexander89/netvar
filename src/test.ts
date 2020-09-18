@@ -22,6 +22,11 @@ console.log(list1.get('working'))
 console.log(list1.get('counter'))
 console.log(list1.get('text'))
 console.log(list1.get('wText'))
+list1.set('emergency', true)
+list1.set('wText', 'hello this is a utf16LE text')
+list1.set('text', 'hello this is a ascii code')
+console.log(list1.get('text'))
+console.log(list1.get('wText'))
 
 fs.writeFileSync('definiting.gvl', list1.definition)
 
