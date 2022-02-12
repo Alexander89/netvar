@@ -39,9 +39,10 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         lng = out.writeInt8(def.value)
         break
       case 'WORD':
-        lng = out.writeInt16LE(def.value)
+        lng = out.writeUInt16LE(def.value)
         break
       case 'DWORD':
+        lng = out.writeUInt32LE(def.value)
       case 'TIME':
         lng = out.writeInt32LE(def.value)
         break
