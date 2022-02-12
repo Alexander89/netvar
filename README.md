@@ -32,7 +32,7 @@ const list1 = netVar.openList(
   {
     emergency: t.boolean(0),
     working: t.word(1),
-    counter: t.dWore(2, 4242),
+    counter: t.dWord(2, 4242),
   },
 )
 
@@ -97,7 +97,7 @@ fs.writeFileSync('definiting.gvl', list1.definition)
 | t.string  | string  | STRING  |
 | t.wString | string  | WSTRING |
 | t.byte    | number  | BYTE    |
-| t.dWore   | number  | DWORE   |
+| t.dWord   | number  | DWORD   |
 | t.time    | number  | TIME    |
 | t.real    | number  | REAL    |
 | t.lReal   | number  | LREAL   |

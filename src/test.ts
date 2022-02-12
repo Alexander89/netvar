@@ -9,7 +9,7 @@ const list1 = netVar.openList(
   {
     emergency: t.boolean(1),
     working: t.word(2),
-    counter: t.dWore(3, 1425),
+    counter: t.dWord(3, 1425),
     text: t.string(4, 'Hello PLC'),
     wText: t.wString(5, 'Hello い'),
   },

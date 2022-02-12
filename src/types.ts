@@ -49,7 +49,7 @@ export const byte = (idx: number, value: number = 0): NvByte => ({
   value,
 })
 
-export const dWore = (idx: number, value: number = 0): NvDWord => ({
+export const dWord = (idx: number, value: number = 0): NvDWord => ({
   idx,
   type: 'DWORD',
   value,
