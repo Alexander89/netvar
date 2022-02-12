@@ -74,9 +74,9 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
   }
 
   type Return<T extends { [key: string]: t.Types }> = {
-    set: <K extends keyof T>(name: K, value: T[K]['value']) => void
-    setMore: (set: { [K in keyof T]?: T[K]['value'] }) => void
-    get: <K extends keyof T>(name: K) => T[K]['value']
+    set: <K extends keyof T>(name: K, value: T[K]['value']) => boolean
+    setMore: (set: { [K in keyof T]?: T[K]['value'] }) => boolean
+    get: <K extends keyof T>(name: K) => T[K]['value'] | undefined
     definition: string
     dispose: () => void
   }
@@ -143,54 +143,54 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
       switch (selVar.type) {
         case 'BOOL':
           selVar.value = data.readInt8(offset) !== 0
-          bytesRead=1
+          bytesRead = 1
           break
         case 'BYTE':
           selVar.value = data.readInt8(offset)
-          bytesRead=1
+          bytesRead = 1
           break
         case 'WORD':
           selVar.value = data.readInt16LE(offset)
-          bytesRead=2
+          bytesRead = 2
           break
         case 'DWORD':
           selVar.value = data.readInt32LE(offset)
-          bytesRead=4
+          bytesRead = 4
           break
         case 'STRING': {
           let strdata = data.slice(offset)
           let length = strdata.findIndex((c) => c === 0)
           selVar.value = strdata.toString('ascii', offset, length === -1 ? undefined : length)
-          bytesRead= length === -1 ? 0 : length
+          bytesRead = length === -1 ? 0 : length
           break
         }
         case 'WSTRING': {
           let strdata = data.slice(offset)
           let length = strdata.findIndex((c) => c === 0)
           selVar.value = strdata.toString('utf16le', offset, length === -1 ? undefined : length)
-          bytesRead= length === -1 ? 0 : length
+          bytesRead = length === -1 ? 0 : length
           break
         }
         case 'TIME':
           selVar.value = data.readInt32LE(offset)
-          bytesRead=4
+          bytesRead = 4
           break
         case 'REAL':
           selVar.value = data.readFloatLE(offset)
-          bytesRead=4
+          bytesRead = 4
           break
         case 'LREAL':
           selVar.value = data.readDoubleLE(offset)
-          bytesRead=8
+          bytesRead = 8
           break
         default: {
           //selVar.value = data.readInt8()
         }
       }
 
-        if (oldValue !== selVar.value && onChange) {
-          onChange(`${varName}`, selVar.value)
-        }
+      if (oldValue !== selVar.value && onChange) {
+        onChange(`${varName}`, selVar.value)
+      }
       return bytesRead
     }
 
@@ -202,7 +202,7 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         sortedIdx.forEach(o => {
           let varName = o[0]
           if (varName) {
-           offset += readIntoVar(varName, data, offset)
+            offset += readIntoVar(varName, data, offset)
           }
         })
 
@@ -220,9 +220,9 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     const definition = `<GVL>
   <Declarations><![CDATA[VAR_GLOBAL
 ${Object.entries(state)
-  .sort((a, b) => a[1].idx - b[1].idx)
-  .map(([name, def]) => `        ${name}: ${def.type};`)
-  .join('\n')}
+        .sort((a, b) => a[1].idx - b[1].idx)
+        .map(([name, def]) => `        ${name}: ${def.type};`)
+        .join('\n')}
 END_VAR]]></Declarations>
   <NetvarSettings Protocol="UDP">
     <ListIdentifier>${listId}</ListIdentifier>
@@ -244,25 +244,34 @@ END_VAR]]></Declarations>
 </GVL>`
 
     return {
-      set: (name, value) => {
-        state[name].value = value
-        send({ [name]: state[name] } as any)
+      set: (name, value): boolean => {
+        if (name in state) {
+          state[name].value = value
+          send({ [name]: state[name] } as any)
+          return true
+        }
+        return false
       },
-      setMore: (set) => {
-        state = Object.entries(set).reduce(
-          (acc, [name, value]) => ({ ...acc, [name]: { ...acc[name], value } }),
-          state,
-        )
-        const newSet = Object.entries(set).reduce(
-          (acc, [name, value]) => ({
-            ...acc,
-            [name]: { ...state[name], value },
-          }),
-          {},
-        )
-        send(newSet)
+      setMore: (set): boolean => {
+        try {
+          state = Object.entries(set).reduce(
+            (acc, [name, value]) => ({ ...acc, [name]: { ...acc[name], value } }),
+            state,
+          )
+          const newSet = Object.entries(set).reduce(
+            (acc, [name, value]) => ({
+              ...acc,
+              [name]: { ...state[name], value },
+            }),
+            {},
+          )
+          send(newSet)
+          return true
+        } catch {
+          return false
+        }
       },
-      get: (name) => state[name].value,
+      get: (name) => name in state ? state[name].value : undefined,
       definition,
       dispose: () => cycleIntervalTimer && clearInterval(cycleIntervalTimer),
     }

@@ -9,7 +9,7 @@ const netVar = (0, index_1.client)('192.168.0.100');
 const list1 = netVar.openList({ listId: 1, onChange: console.log }, {
     emergency: index_1.t.boolean(1),
     working: index_1.t.word(2),
-    counter: index_1.t.dWore(3, 1425),
+    counter: index_1.t.dWord(3, 1425),
     text: index_1.t.string(4, 'Hello PLC'),
     wText: index_1.t.wString(5, 'Hello い'),
 });

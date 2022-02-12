@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.double = exports.float = exports.lReal = exports.real = exports.time = exports.dWore = exports.byte = exports.wString = exports.string = exports.word = exports.boolean = void 0;
+exports.double = exports.float = exports.lReal = exports.real = exports.time = exports.dWord = exports.byte = exports.wString = exports.string = exports.word = exports.boolean = void 0;
 const boolean = (idx, value = false) => ({
     idx,
     type: 'BOOL',
@@ -31,12 +31,12 @@ const byte = (idx, value = 0) => ({
     value,
 });
 exports.byte = byte;
-const dWore = (idx, value = 0) => ({
+const dWord = (idx, value = 0) => ({
     idx,
     type: 'DWORD',
     value,
 });
-exports.dWore = dWore;
+exports.dWord = dWord;
 const time = (idx, value = 0) => ({
     idx,
     type: 'TIME',

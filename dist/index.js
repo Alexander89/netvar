@@ -221,15 +221,25 @@ END_VAR]]></Declarations>
 </GVL>`;
         return {
             set: (name, value) => {
-                state[name].value = value;
-                send({ [name]: state[name] });
+                if (name in state) {
+                    state[name].value = value;
+                    send({ [name]: state[name] });
+                    return true;
+                }
+                return false;
             },
             setMore: (set) => {
-                state = Object.entries(set).reduce((acc, [name, value]) => (Object.assign(Object.assign({}, acc), { [name]: Object.assign(Object.assign({}, acc[name]), { value }) })), state);
-                const newSet = Object.entries(set).reduce((acc, [name, value]) => (Object.assign(Object.assign({}, acc), { [name]: Object.assign(Object.assign({}, state[name]), { value }) })), {});
-                send(newSet);
+                try {
+                    state = Object.entries(set).reduce((acc, [name, value]) => (Object.assign(Object.assign({}, acc), { [name]: Object.assign(Object.assign({}, acc[name]), { value }) })), state);
+                    const newSet = Object.entries(set).reduce((acc, [name, value]) => (Object.assign(Object.assign({}, acc), { [name]: Object.assign(Object.assign({}, state[name]), { value }) })), {});
+                    send(newSet);
+                    return true;
+                }
+                catch (_a) {
+                    return false;
+                }
             },
-            get: (name) => state[name].value,
+            get: (name) => name in state ? state[name].value : undefined,
             definition,
             dispose: () => cycleIntervalTimer && clearInterval(cycleIntervalTimer),
         };
