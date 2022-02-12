@@ -84,6 +84,8 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     const { listId, onChange, cyclic, cycleInterval } = options
     const nodeId = '002d5333'
 
+    let sortedIdx = Object.entries(vars).sort((a, b) => a[1].idx - b[1].idx)
+
     let state = { ...vars }
     let cycleIntervalTimer: NodeJS.Timeout | undefined = undefined
     if (cyclic) {
@@ -131,53 +133,86 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         // })
         .forEach((cmd) => socket.send(cmd, 1202, endpoint))
     }
-    const onMessage = (varId: number, data: Buffer) => {
-      const varName = getVarName(varId)
 
-      if (varName) {
-        const selVar = state[varName]
-        const oldValue = selVar.value
-        switch (selVar.type) {
-          case 'BOOL':
-            selVar.value = data.readInt8() !== 0
-            break
-          case 'BYTE':
-            selVar.value = data.readInt8()
-            break
-          case 'WORD':
-            selVar.value = data.readInt16LE()
-            break
-          case 'DWORD':
-            selVar.value = data.readInt32LE()
-            break
-          case 'STRING': {
-            let length = data.findIndex((c) => c === 0)
-            selVar.value = data.toString('ascii', 0, length === -1 ? undefined : length)
-            break
-          }
-          case 'WSTRING': {
-            let length = data.findIndex((c) => c === 0)
-            selVar.value = data.toString('utf16le', 0, length === -1 ? undefined : length)
-            break
-          }
-          case 'TIME':
-            selVar.value = data.readInt32LE()
-            break
-          case 'REAL':
-            selVar.value = data.readFloatLE()
-            break
-          case 'LREAL':
-            selVar.value = data.readDoubleLE()
-            break
-          default: {
-            selVar.value = data.readInt8()
-          }
+    const readIntoVar = (varName: string, data: Buffer, offset: number): number => {
+      let bytesRead = 0
+
+      const selVar = state[varName]
+      const oldValue = selVar.value
+      switch (selVar.type) {
+        case 'BOOL':
+          selVar.value = data.readInt8(offset) !== 0
+          bytesRead=1
+          break
+        case 'BYTE':
+          selVar.value = data.readInt8(offset)
+          bytesRead=1
+          break
+        case 'WORD':
+          selVar.value = data.readInt16LE(offset)
+          bytesRead=2
+          break
+        case 'DWORD':
+          selVar.value = data.readInt32LE(offset)
+          bytesRead=4
+          break
+        case 'STRING': {
+          let strdata = data.slice(offset)
+          let length = strdata.findIndex((c) => c === 0)
+          selVar.value = strdata.toString('ascii', offset, length === -1 ? undefined : length)
+          bytesRead= length === -1 ? 0 : length
+          break
         }
+        case 'WSTRING': {
+          let strdata = data.slice(offset)
+          let length = strdata.findIndex((c) => c === 0)
+          selVar.value = strdata.toString('utf16le', offset, length === -1 ? undefined : length)
+          bytesRead= length === -1 ? 0 : length
+          break
+        }
+        case 'TIME':
+          selVar.value = data.readInt32LE(offset)
+          bytesRead=4
+          break
+        case 'REAL':
+          selVar.value = data.readFloatLE(offset)
+          bytesRead=4
+          break
+        case 'LREAL':
+          selVar.value = data.readDoubleLE(offset)
+          bytesRead=8
+          break
+        default: {
+          //selVar.value = data.readInt8()
+        }
+      }
 
         if (oldValue !== selVar.value && onChange) {
           onChange(`${varName}`, selVar.value)
         }
+      return bytesRead
+    }
+
+    const onMessage = (varId: number, data: Buffer) => {
+
+      if (varId === 0) { // no SubIndex, iterate packed variables 
+        const slice = data
+        let offset = 0
+        sortedIdx.forEach(o => {
+          let varName = o[0]
+          if (varName) {
+           offset += readIntoVar(varName, data, offset)
+          }
+        })
+
+      } else {
+        const varName = getVarName(varId)
+        if (typeof varName === 'string') {
+          readIntoVar(varName, data, 0)
+        }
       }
+      const varName = getVarName(varId)
+
     }
     listeners.push({ listId, cb: onMessage })
 
