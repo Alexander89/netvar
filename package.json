@@ -16,7 +16,7 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/alexander89/netvar"
+        "url": "https://github.com/DAmesberger/netvar"
     },
     "scripts": {
         "prepublish": "tsc",
