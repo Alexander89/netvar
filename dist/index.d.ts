@@ -5,8 +5,14 @@ export declare type Options = {
     onChange?: (name: string, value: any) => void;
     cyclic?: boolean;
     cycleInterval?: number;
+    packed?: boolean;
 };
-export declare const client: (endpoint?: string, port?: number) => {
+interface ClientOptions {
+    port?: number;
+    send_port?: number;
+    debug?: boolean;
+}
+export declare const client: (endpoint?: string, clientopts?: ClientOptions | undefined) => {
     openList: <T extends {
         [k: string]: t.Types;
     }>(options: Options, vars: T) => {
