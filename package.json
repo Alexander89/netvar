@@ -1,36 +1,36 @@
 {
-  "name": "netvar",
-  "version": "1.0.6",
-  "description": "Communicate to your codeSys plc over Network Variable Lists easily",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "keywords": [
-    "PLC",
-    "Wago",
-    "netvar",
-    "61131",
-    "NVL",
-    "GVL",
-    "Network Variable List",
-    "Network Variables"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/alexander89/netvar"
-  },
-  "scripts": {
-    "prepublish": "tsc",
-    "start": "ts-node src/test.ts"
-  },
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^14.6.0",
-    "eslint-config-prettier": "^6.11.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "eslint": "^7.6.0",
-    "prettier": "^2.0.5",
-    "ts-node": "^8.10.2",
-    "typescript": "^3.9.7"
-  }
+    "name": "netvar",
+    "version": "1.2.1",
+    "description": "Communicate to your codeSys plc over Network Variable Lists easily",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "keywords": [
+        "PLC",
+        "Wago",
+        "netvar",
+        "61131",
+        "NVL",
+        "GVL",
+        "Network Variable List",
+        "Network Variables"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DAmesberger/netvar"
+    },
+    "scripts": {
+        "prepublish": "tsc",
+        "start": "ts-node src/test.ts"
+    },
+    "author": "Alexander89, Daniel Amesberger",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^14.6.0",
+        "eslint-config-prettier": "^6.11.0",
+        "eslint-plugin-prettier": "^3.1.4",
+        "eslint": "^7.6.0",
+        "prettier": "^2.0.5",
+        "ts-node": "^8.10.2",
+        "typescript": "^3.9.7"
+    }
 }

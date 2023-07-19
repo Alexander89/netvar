@@ -9,7 +9,7 @@ const list1 = netVar.openList(
   {
     emergency: t.boolean(1),
     working: t.word(2),
-    counter: t.dWore(3, 1425),
+    counter: t.dWord(3, 1425),
     text: t.string(4, 'Hello PLC'),
     wText: t.wString(5, 'Hello い'),
   },
@@ -60,3 +60,8 @@ fs.writeFileSync('definiting.gvl', list1.definition)
 // counter                             28000000
 // data                                        DATA
 // const dataArray = []
+
+//TODO
+function test_packed() {
+const b = Buffer.from([0x00, 0x2d, 0x53, 0x33, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x24, 0x00, 0x6d, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x4b, 0x8e, 0x00])
+}
