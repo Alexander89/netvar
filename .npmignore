@@ -6,3 +6,4 @@ src/api.ts_v0
 .gitignore
 .eslintrc.js
 .editorconfig
+tscconfig.json

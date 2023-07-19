@@ -16,10 +16,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/DAmesberger/netvar"
+    "url": "https://github.com/alexander89/netvar"
   },
   "scripts": {
     "prepublish": "tsc",
+    "build": "tsc",
     "start": "ts-node src/test.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint --fix src/**/*.ts",
@@ -29,13 +30,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.4.2",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "eslint": "^8.45.0",
     "prettier": "^3.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "eslint-config-prettier": "^8.8.0",
-    "eslint-plugin-prettier": "^5.0.0"
   }
 }
