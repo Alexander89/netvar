@@ -3,7 +3,11 @@ type NvWord = { idx: number; type: 'WORD'; value: number }
 type NvString = { idx: number; type: 'STRING'; value: string }
 type NvWString = { idx: number; type: 'WSTRING'; value: string }
 type NvByte = { idx: number; type: 'BYTE'; value: number }
+/**
+ * @deprecated since V 1.2 please use NvDWord
+ */
 type NvDWore = { idx: number; type: 'DWORD'; value: number }
+type NvDWord = { idx: number; type: 'DWORD'; value: number }
 type NvTime = { idx: number; type: 'TIME'; value: number }
 type NvReal = { idx: number; type: 'REAL'; value: number }
 type NvLReal = { idx: number; type: 'LREAL'; value: number }
@@ -15,6 +19,7 @@ export type Types =
   | NvWString
   | NvByte
   | NvDWore
+  | NvDWord
   | NvTime
   | NvReal
   | NvLReal
@@ -49,11 +54,16 @@ export const byte = (idx: number, value: number = 0): NvByte => ({
   value,
 })
 
-export const dWore = (idx: number, value: number = 0): NvDWore => ({
+export const dWord = (idx: number, value: number = 0): NvDWord => ({
   idx,
   type: 'DWORD',
   value,
 })
+
+/**
+ * @deprecated since V 1.2 please use dWord
+ */
+export const dWore = dWord
 
 export const time = (idx: number, value: number = 0): NvTime => ({
   idx,

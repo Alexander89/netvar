@@ -5,25 +5,46 @@ export * as t from './types'
 
 export type Options = {
   listId: number
-  onChange?: (name: string, value: any) => void
+  // todo change to unknown
+  onChange?: (name: string, value: any) => void // eslint-disable-line
   cyclic?: boolean
   cycleInterval?: number
+  packed?: boolean
+}
+
+interface ClientOptions {
+  /// Port to listen to
+  port?: number
+  /// Optional port to use when sending data
+  /// (if not specified, `port` is used to send data as well)
+  send_port?: number
+  /// If true, sent and received packages are printed to the terminal
+  debug?: boolean
 }
 
 type OnMessage = (varId: number, value: Buffer) => void
 
-type ListenerList = { listId: Number; cb: OnMessage }[]
+type ListenerList = { listId: number; cb: OnMessage }[]
 
-export const client = (endpoint: string = '255.255.255.255', port: number = 1202) => {
+/// endpoint: default value '255.255.255.255'
+export const client = (endpoint: string = '255.255.255.255', clientopts?: ClientOptions) => {
   const listeners: ListenerList = []
+
+  const port = clientopts?.port || 1202
+  const write_port = clientopts?.send_port || port
+  const debug = clientopts?.debug || false
 
   const socket = createSocket('udp4', (msg) => {
     if (msg.length < 20) {
       return
     }
     const data = msg.toString('hex')
-    const varId = parseInt(data.substr(18, 4), 16)
-    const listId = parseInt(data.substr(16, 2), 16)
+    const varId = parseInt(data.substring(18, 22), 16)
+    const listId = parseInt(data.substring(16, 18), 16)
+
+    if (debug) {
+      console.log(`RECV (listId: ${listId}, from ${endpoint}:${write_port}): ${data}`)
+    }
     listeners.filter((l) => l.listId == listId).forEach((l) => l.cb(varId, msg.subarray(20)))
   })
 
@@ -39,9 +60,10 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
         lng = out.writeInt8(def.value)
         break
       case 'WORD':
-        lng = out.writeInt16LE(def.value)
+        lng = out.writeUInt16LE(def.value)
         break
       case 'DWORD':
+        lng = out.writeUInt32LE(def.value)
       case 'TIME':
         lng = out.writeInt32LE(def.value)
         break
@@ -72,23 +94,75 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     return lngBuf.toString('hex')
   }
 
+  const d2h = (d: number, l: number) => {
+    let bn = BigInt(d)
+
+    let pos = true
+    if (bn < 0) {
+      pos = false
+      bn = bitnot(bn)
+    }
+
+    let hex = bn.toString(16)
+    if (hex.length % 2) {
+      hex = '0' + hex
+    }
+
+    if (pos && 0x80 & parseInt(hex.slice(0, 2), 16)) {
+      hex = '00' + hex
+    }
+
+    return (hex.length % 2 ? '0' + hex : hex).padEnd(l, '0')
+  }
+
+  const bitnot = (bn: bigint) => {
+    bn = BigInt(-bn)
+    let bin = bn.toString(2)
+    let prefix = ''
+    while (bin.length % 8) {
+      bin = '0' + bin
+    }
+    if ('1' === bin[0] && -1 !== bin.slice(1).indexOf('1')) {
+      prefix = '11111111'
+    }
+    bin = bin
+      .split('')
+      .map(function (i) {
+        return '0' === i ? '1' : '0'
+      })
+      .join('')
+    return BigInt('0b' + prefix + bin) + BigInt(1)
+  }
+
   type Return<T extends { [key: string]: t.Types }> = {
-    set: <K extends keyof T>(name: K, value: T[K]['value']) => void
-    setMore: (set: { [K in keyof T]?: T[K]['value'] }) => void
-    get: <K extends keyof T>(name: K) => T[K]['value']
+    set: <K extends keyof T>(name: K, value: T[K]['value']) => boolean
+    setMore: (set: { [K in keyof T]?: T[K]['value'] }) => boolean
+    get: <K extends keyof T>(name: K) => T[K]['value'] | undefined
     definition: string
     dispose: () => void
   }
 
   const list = <T extends { [k: string]: t.Types }>(options: Options, vars: T): Return<T> => {
-    const { listId, onChange, cyclic, cycleInterval } = options
+    const { listId, onChange, cyclic, cycleInterval, packed } = options
     const nodeId = '002d5333'
+    const listIdStr = d2h(listId, 4)
+
+    let packedSendCounter = 0
+
+    const write_state: T = JSON.parse(JSON.stringify(vars)) //clone to save write state separately
+    const sortedIdx = Object.entries(write_state)
+      .sort((a, b) => a[1].idx - b[1].idx)
+      .map(([name, _]) => name)
 
     let state = { ...vars }
+
     let cycleIntervalTimer: NodeJS.Timeout | undefined = undefined
     if (cyclic) {
       const interval = cycleInterval || 1000
-      cycleIntervalTimer = setInterval(() => send(state), interval)
+      cycleIntervalTimer = setInterval(
+        () => (packed ? sendPacked(write_state) : send(write_state)),
+        interval,
+      )
     }
 
     const getVarName = (idx: number): keyof T | undefined => {
@@ -104,78 +178,131 @@ export const client = (endpoint: string = '255.255.255.255', port: number = 1202
     )
 
     const getCounter = (key: keyof T) => {
-      getNextSendCounter[key]++
-      const nrText = ('0000000' + getNextSendCounter[key].toString(16)).substr(-8)
-
-      return nrText.substr(6, 2) + nrText.substr(4, 2) + nrText.substr(2, 2) + nrText.substr(0, 2)
+      return getNextSendCounter[key]++
     }
+
+    const getPackedSendCounter = (): number => {
+      packedSendCounter += 1
+      if (packedSendCounter > 65535) packedSendCounter = 0
+      return packedSendCounter
+    }
+
+    const sendPacked = (write_state: T) => {
+      const counter = d2h(getPackedSendCounter(), 4)
+      const vars = sortedIdx.map((name) => {
+        return mkValue(write_state[name])
+      })
+      const lng = d2h(vars.reduce((sum, current) => sum + current.lng, 0) + 20, 4) //add 20 bytes for the header
+      const data = vars.map((current, _lng) => current.data).join('')
+      const items = d2h(vars.length, 4)
+      const cmdStr = `${nodeId}00000000${listIdStr}0000${items}${lng}${counter}0000${data}`
+      const cmd = Buffer.from(cmdStr, 'hex')
+
+      if (debug) {
+        console.log(`SEND (${endpoint}:${write_port}): ${cmdStr}`)
+      }
+      socket.send(cmd, write_port, endpoint)
+    }
+
     const send = (send: Partial<T>) => {
       Object.entries(send)
         .filter((toSend): toSend is [string, t.Types] => true)
         .map(([name, toSend]) => {
           const { data, lng } = mkValue(toSend)
           return {
-            idx: toSend.idx.toString(16),
-            counter: getCounter(name),
-            // @ts-ignore
+            idx: d2h(toSend.idx, 2),
+            counter: d2h(getCounter(name), 2),
             data,
             lng: mkLng(lng),
           }
         })
-        .map(({ idx, lng, counter, data }) =>
-          Buffer.from(`${nodeId}000000000${listId}000${idx}000100${lng}${counter}${data}`, 'hex'),
-        )
-        // .map((a) => {
-        //   console.log(a.toString('hex'))
-        //   return a
-        // })
-        .forEach((cmd) => socket.send(cmd, 1202, endpoint))
+        .map(({ idx, lng, counter, data }) => {
+          const str = `${nodeId}00000000${listIdStr}${idx}0100${lng}${counter}0000${data}`
+          if (debug) {
+            console.log(`SEND (${endpoint}:${write_port}): ${str}`)
+          }
+          return Buffer.from(str, 'hex')
+        })
+        .forEach((cmd) => {
+          socket.send(cmd, write_port, endpoint)
+        })
     }
-    const onMessage = (varId: number, data: Buffer) => {
-      const varName = getVarName(varId)
 
-      if (varName) {
+    const readIntoVar = (varName: string, data: Buffer, offset: number): number => {
+      let bytesRead = 0
+
+      //TODO - maybe improve error handling at some point
+      try {
         const selVar = state[varName]
         const oldValue = selVar.value
+
         switch (selVar.type) {
           case 'BOOL':
-            selVar.value = data.readInt8() !== 0
+            selVar.value = data.readInt8(offset) !== 0
+            bytesRead = 1
             break
           case 'BYTE':
-            selVar.value = data.readInt8()
+            selVar.value = data.readInt8(offset)
+            bytesRead = 1
             break
           case 'WORD':
-            selVar.value = data.readInt16LE()
+            selVar.value = data.readInt16LE(offset)
+            bytesRead = 2
             break
           case 'DWORD':
-            selVar.value = data.readInt32LE()
+            selVar.value = data.readInt32LE(offset)
+            bytesRead = 4
             break
           case 'STRING': {
-            let length = data.findIndex((c) => c === 0)
-            selVar.value = data.toString('ascii', 0, length === -1 ? undefined : length)
+            const strdata = data.slice(offset)
+            const length = strdata.findIndex((c) => c === 0)
+            selVar.value = strdata.toString('ascii', offset, length === -1 ? undefined : length)
+            bytesRead = length === -1 ? 0 : length
             break
           }
           case 'WSTRING': {
-            let length = data.findIndex((c) => c === 0)
-            selVar.value = data.toString('utf16le', 0, length === -1 ? undefined : length)
+            const strdata = data.slice(offset)
+            const length = strdata.findIndex((c) => c === 0)
+            selVar.value = strdata.toString('utf16le', offset, length === -1 ? undefined : length)
+            bytesRead = length === -1 ? 0 : length
             break
           }
           case 'TIME':
-            selVar.value = data.readInt32LE()
+            selVar.value = data.readInt32LE(offset)
+            bytesRead = 4
             break
           case 'REAL':
-            selVar.value = data.readFloatLE()
+            selVar.value = data.readFloatLE(offset)
+            bytesRead = 4
             break
           case 'LREAL':
-            selVar.value = data.readDoubleLE()
+            selVar.value = data.readDoubleLE(offset)
+            bytesRead = 8
             break
           default: {
-            selVar.value = data.readInt8()
+            //selVar.value = data.readInt8()
           }
         }
 
         if (oldValue !== selVar.value && onChange) {
           onChange(`${varName}`, selVar.value)
+        }
+      } catch {}
+      return bytesRead
+    }
+
+    const onMessage = (varId: number, data: Buffer) => {
+      if (varId === 0) {
+        let offset = 0
+        sortedIdx.forEach((name) => {
+          if (name) {
+            offset += readIntoVar(name, data, offset)
+          }
+        })
+      } else {
+        const varName = getVarName(varId)
+        if (typeof varName === 'string') {
+          readIntoVar(varName, data, 0)
         }
       }
     }
@@ -208,25 +335,36 @@ END_VAR]]></Declarations>
 </GVL>`
 
     return {
-      set: (name, value) => {
-        state[name].value = value
-        send({ [name]: state[name] } as any)
+      set: (name, value): boolean => {
+        if (name in state) {
+          write_state[name].value = value
+          packed
+            ? sendPacked(write_state)
+            : send({ [name]: write_state[name] } as any as Partial<T>) // eslint-disable-line
+          return true
+        }
+        return false
       },
-      setMore: (set) => {
-        state = Object.entries(set).reduce(
-          (acc, [name, value]) => ({ ...acc, [name]: { ...acc[name], value } }),
-          state,
-        )
-        const newSet = Object.entries(set).reduce(
-          (acc, [name, value]) => ({
-            ...acc,
-            [name]: { ...state[name], value },
-          }),
-          {},
-        )
-        send(newSet)
+      setMore: (set): boolean => {
+        try {
+          state = Object.entries(set).reduce(
+            (acc, [name, value]) => ({ ...acc, [name]: { ...acc[name], value } }),
+            state,
+          )
+          const newSet = Object.entries(set).reduce(
+            (acc, [name, value]) => ({
+              ...acc,
+              [name]: { ...state[name], value },
+            }),
+            {},
+          )
+          packed ? sendPacked(write_state) : send(newSet)
+          return true
+        } catch {
+          return false
+        }
       },
-      get: (name) => state[name].value,
+      get: (name) => (name in state ? state[name].value : undefined),
       definition,
       dispose: () => cycleIntervalTimer && clearInterval(cycleIntervalTimer),
     }

@@ -1,3 +1,8 @@
+# Changes to original package by alexander98
+- openList supports an additional boolean `packed`. Needed if the PLC has `pack variables` activated. In this mode, a set(), setMore() or cyclic send will always send all variables in one packed message, instead of sending each variable in an individual UDP packet. Also receive detects if message is packed and handles it correctly
+- send port not hardcoded to 1202, can be defined as an optional parameter in client().
+- debug: log sent and received messages
+- UDP message parts are encoded properly so listId can be larger than 0xF and the message counters increment correctly
 # CoDeSys NetworkVariableLists
 
 To exchange global variables with a CoDeSys-PLC is very easy. Just create a NetworkVariableList _(NVL (Sender))_ and add your variables to the list. With this package you can receive this UDP-packages and parse them.
@@ -16,8 +21,10 @@ Create a new client with the `netvar` package
 import { client } from 'netvar'
 
 const netVar = client()
-const netVar1 = client('192.168.0.123')
-const netVar2 = client('192.168.0.255', 1202)
+const netVar1 = client('192.168.0.123') //defaults to port 1202
+const netVar2 = client('192.168.0.255', {port: 1202}) //uses the same port for send and receive
+const netVar3 = client('192.168.0.123', {port: 1202, send_port: 1302}) //receive from port 1202, send to port 1302
+const netVar4 = client('192.168.0.123', {debug: true}) //enable debug messages
 ```
 
 ### Define a new or connect to existing list
@@ -32,7 +39,7 @@ const list1 = netVar.openList(
   {
     emergency: t.boolean(0),
     working: t.word(1),
-    counter: t.dWore(2, 4242),
+    counter: t.dWord(2, 4242),
   },
 )
 
@@ -43,6 +50,7 @@ const list2 = netVar.openList({
     onChange: (name, value) => console.log(name, value),
     cyclic: true,
     cycleInterval: 2000,
+    packed: true, //pack all variables on send (when set() or setMore()). Some PLCs only support this mode
   },
   {
     Active: t.boolean(0),
@@ -97,7 +105,7 @@ fs.writeFileSync('definiting.gvl', list1.definition)
 | t.string  | string  | STRING  |
 | t.wString | string  | WSTRING |
 | t.byte    | number  | BYTE    |
-| t.dWore   | number  | DWORE   |
+| t.dWord   | number  | DWORD   |
 | t.time    | number  | TIME    |
 | t.real    | number  | REAL    |
 | t.lReal   | number  | LREAL   |

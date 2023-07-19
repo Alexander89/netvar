@@ -1,6 +1,6 @@
 {
   "name": "netvar",
-  "version": "1.0.6",
+  "version": "1.2.1",
   "description": "Communicate to your codeSys plc over Network Variable Lists easily",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,17 +20,23 @@
   },
   "scripts": {
     "prepublish": "tsc",
-    "start": "ts-node src/test.ts"
+    "build": "tsc",
+    "start": "ts-node src/test.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint --fix src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
   },
-  "author": "",
+  "author": "Alexander89, Daniel Amesberger",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^14.6.0",
-    "eslint-config-prettier": "^6.11.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "eslint": "^7.6.0",
-    "prettier": "^2.0.5",
-    "ts-node": "^8.10.2",
-    "typescript": "^3.9.7"
+    "@types/node": "^20.4.2",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint": "^8.45.0",
+    "prettier": "^3.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
   }
 }
