@@ -52,7 +52,9 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
   socket.bind(port)
 
   const mkValue = (def: t.Types): { data: string; lng: number } => {
-    const out = Buffer.alloc(250)
+    const defaultBufferSize = 8;
+    let bufferSize = def.type === 'STRING' || def.type === 'WSTRING' ? 255 : defaultBufferSize;
+    const out = Buffer.alloc(bufferSize);
     let lng = 0
     switch (def.type) {
       case 'BOOL':
@@ -250,7 +252,7 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
         if (oldValue !== selVar.value && onChange) {
           onChange(`${varName}`, selVar.value)
         }
-      } catch {}
+      } catch { }
       return bytesRead
     }
 
@@ -269,14 +271,15 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
         }
       }
     }
+
     listeners.push({ listId, cb: onMessage })
 
     const definition = `<GVL>
   <Declarations><![CDATA[VAR_GLOBAL
 ${Object.entries(state)
-  .sort((a, b) => a[1].idx - b[1].idx)
-  .map(([name, def]) => `        ${name}: ${def.type};`)
-  .join('\n')}
+        .sort((a, b) => a[1].idx - b[1].idx)
+        .map(([name, def]) => `        ${name}: ${def.type};`)
+        .join('\n')}
 END_VAR]]></Declarations>
   <NetvarSettings Protocol="UDP">
     <ListIdentifier>${listId}</ListIdentifier>
