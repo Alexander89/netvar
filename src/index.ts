@@ -341,7 +341,10 @@ END_VAR]]></Declarations>
       },
       get: (name) => (name in state ? state[name].value : undefined),
       definition,
-      dispose: () => cycleIntervalTimer && clearInterval(cycleIntervalTimer),
+      dispose: () => {
+        cycleIntervalTimer && clearInterval(cycleIntervalTimer)
+        socket.close()
+      },
     }
   }
 
