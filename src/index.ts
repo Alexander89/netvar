@@ -322,21 +322,34 @@ END_VAR]]></Declarations>
       },
       setMore: (set): boolean => {
         try {
-          state = Object.entries(set).reduce(
-            (acc, [name, value]) => ({ ...acc, [name]: { ...acc[name], value } }),
-            state,
-          )
-          const newSet = Object.entries(set).reduce(
-            (acc, [name, value]) => ({
-              ...acc,
-              [name]: { ...state[name], value },
-            }),
-            {},
-          )
-          packed ? sendPacked(write_state) : send(newSet)
-          return true
+          Object.keys(set).forEach(name => {
+            const key = name as keyof T;
+            const newValue = set[key];
+
+            // Check if newValue is not undefined before assigning
+            if (key in state && newValue !== undefined) {
+              write_state[key].value = newValue;
+            }
+          });
+
+          if (packed) {
+            sendPacked(write_state);
+          } else {
+            const newSet: Partial<T> = {};
+            Object.keys(set).forEach(name => {
+              const key = name as keyof T;
+              const newValue = set[key];
+
+              // Include in newSet only if newValue is not undefined
+              if (key in state && newValue !== undefined) {
+                newSet[key] = { ...state[key], value: newValue };
+              }
+            });
+            send(newSet);
+          }
+          return true;
         } catch {
-          return false
+          return false;
         }
       },
       get: (name) => (name in state ? state[name].value : undefined),
