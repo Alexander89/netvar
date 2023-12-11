@@ -49,7 +49,16 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
     listeners.filter((l) => l.listId == listId).forEach((l) => l.cb(varId, msg.subarray(20)))
   })
 
-  socket.bind(port)
+  socket.bind(port, () => {
+    if (debug) {
+      const recvBufferSize = socket.getRecvBufferSize();
+      const sendBufferSize = socket.getSendBufferSize();
+
+      console.log(`Socket is bound to port ${port}`);
+      console.log(`Receive Buffer Size: ${recvBufferSize}`);
+      console.log(`Send Buffer Size: ${sendBufferSize}`);
+    }
+  });
 
   const mkValue = (def: t.Types): { data: string; lng: number } => {
     const defaultBufferSize = 8;
