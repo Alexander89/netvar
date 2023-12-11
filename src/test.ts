@@ -1,73 +1,204 @@
 import { client, t } from './index'
 import fs from 'fs'
+import { d2h } from './util';
+import dgram from 'dgram';
 
-const netVar = client('192.168.0.100')
+jest.mock('fs', () => ({
+  writeFileSync: jest.fn(),
+}));
 
-const list1 = netVar.openList(
-  { listId: 1, onChange: console.log },
-  {
-    emergency: t.boolean(1),
-    working: t.word(2),
-    counter: t.dWord(3, 1425),
-    text: t.string(4, 'Hello PLC'),
-    wText: t.wString(5, 'Hello い'),
-  },
-)
+describe('netVar client tests', () => {
+  let netVar, list1: any, server: dgram.Socket
+  const ENDPOINT = 'localhost';
+  const SERVER_PORT = 1302;
+  const CLIENT_PORT = 1202;
 
-list1.set('emergency', true)
-list1.setMore({ emergency: true, working: 1, text: 'Hello PLC newText' })
-console.log(list1.get('emergency'))
-console.log(list1.get('working'))
-console.log(list1.get('counter'))
-console.log(list1.get('text'))
-console.log(list1.get('wText'))
-list1.set('emergency', true)
-list1.set('wText', 'hello this is a utf16LE text')
-list1.set('text', 'hello this is a ascii code')
-console.log(list1.get('text'))
-console.log(list1.get('wText'))
+  type Callback = (value: any) => void;
+  let varMap: Map<string, Callback> = new Map();
 
-fs.writeFileSync('definiting.gvl', list1.definition)
+  beforeAll(done => {
+    // Set up the UDP echo server
+    server = dgram.createSocket('udp4');
 
-// const b = Buffer.from([0x00, 0x2d, 0x53, 0x33, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x05, 0x00, 0x01, 0x00, 0x17, 0x00, 0x3e, 0x00, 0x00, 0x00, 0x41, 0x42, 0x41, 0x42, 0x00, 0x00])
-// createSocket('udp4', (input) => {}).send(b, 1202, 'localhost')
+    server.on('error', (err) => {
+      console.error(`Server error:\n${err.stack}`);
+      server.close();
+    });
 
-// 0          1           2            3           4
-// 01234567 89012345 6789 0123 4567 8901 23456789 01
-// 002d5333 00000000 0100 0200 0100 1500 2a000000 01
-// 002d5333 00000000 0100 0500 0100 1500 09000000 00
-// 0 Task_DONE
-// 1 Enabled
+    server.on('message', (msg, rinfo) => {
+      server.send(msg, rinfo.port, ENDPOINT, (error, _bytes) => {
+        if (error) {
+          console.error(`Server error:\n${error}`);
+        } else {
+        }
+      });
+    });
 
-// startup :
-// 002d53330000000001000000010015000100000000
-// 002d53330000000001000100010015000100000001
-// 002d53330000000001000200010015000100000000
-// 002d53330000000001000300010015000100000000
-// 002d53330000000001000400010015000100000000
-// 002d53330000000001000500010015000100000000
-// 002d53330000000001000600010015000100000000
-// 002d53330000000001000700010015000100000000
-//const outPut = new Socket({ captureRejections: true })
+    server.bind(SERVER_PORT, () => {
+      // Set up your client after the server is ready
+      netVar = client(ENDPOINT, { port: CLIENT_PORT, send_port: SERVER_PORT, debug: false }); // Use localhost and the same port
+      list1 = netVar.openList(
+        {
+          listId: 0, onChange: (name: string, value: any) => {
+            const callback = varMap.get(name);
+            if (callback) {
+              //console.log(`Received ${name} = "${value}"`);
+              callback(value);
+            }
+            else {
+              //console.log(`Received ${name} = "${value}" NO CALLBACK`);
+            }
+          }, packed: true
+        },
+        {
+          emergency: t.boolean(1),
+          working: t.word(2),
+          counter: t.dWord(3, 1425),
+          text: t.string(4, 'Hello PLC'),
+          wText: t.wString(5, 'Hello い'),
+        },
+      );
+      done(); // Indicate Jest that the setup is complete
+    });
+  });
 
-// id  002d5333
-// nul         00000000
-// list Id             0100
-// VAR idx                 0600
-// varCount                    0100
-// nr of bytes over all            1500
-// counter                             28000000
-// data                                        DATA
-// const dataArray = []
+  afterAll(() => {
+    list1.dispose();
+    server.close();
+  });
 
-//TODO
-function test_packed() {
-  const b = Buffer.from([
-    0x00, 0x2d, 0x53, 0x33, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x24, 0x00,
-    0x6d, 0xd8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x3f, 0x4b, 0x8e, 0x00,
-  ])
-  return b
-}
+  type VariableExpectation = {
+    name: string;
+    expectedValue: any;
+  };
 
-console.log(test_packed())
+  function testVariableChanges(expectations: VariableExpectation[], triggerChange?: () => void, timeout: number = 5000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Timeout: Not all variable changes received within ${timeout}ms`));
+      }, timeout);
+
+      let remainingExpectations = new Set(expectations.map(e => e.name));
+
+      for (const { name, expectedValue } of expectations) {
+        varMap.set(name, (value) => {
+          try {
+            expect(value).toEqual(expectedValue);
+            remainingExpectations.delete(name);
+
+            if (remainingExpectations.size === 0) {
+              clearTimeout(timeoutId);
+              resolve();
+            }
+          } catch (error) {
+            clearTimeout(timeoutId);
+            reject(new Error(`Assertion failed for variable '${name}': ${error}`));
+          }
+        });
+
+        // Trigger the change if a trigger function is provided
+      }
+      triggerChange?.();
+    });
+  }
+
+  test('set single value', async () => {
+    await testVariableChanges([
+      { name: 'emergency', expectedValue: true }
+    ],
+      () => list1.set('emergency', true)
+    );
+
+  });
+
+  test('set single value back', async () => {
+    await testVariableChanges([
+      { name: 'emergency', expectedValue: false }],
+      () => list1.set('emergency', false)
+    );
+  });
+
+  test('set multiple values', async () => {
+    await testVariableChanges([
+      { name: 'emergency', expectedValue: true },
+      { name: 'working', expectedValue: 1 }
+    ],
+      () => {
+        list1.set('emergency', true);
+        list1.set('working', 1);
+      });
+  });
+
+  test('set multiple values2', async () => {
+    await testVariableChanges([
+      { name: 'emergency', expectedValue: false },
+      { name: 'working', expectedValue: 2 }
+    ],
+      () => list1.setMore({ emergency: false, working: 2 }));
+  });
+});
+
+describe('definition tests', () => {
+  let netVar: ReturnType<typeof client>;
+  let list1: any;
+
+  beforeAll(() => {
+    netVar = client('127.0.0.1');
+    list1 = netVar.openList(
+      { listId: 1, onChange: console.log },
+      {
+        emergency: t.boolean(1),
+        working: t.word(2),
+        counter: t.dWord(3, 1425),
+        text: t.string(4, 'Hello PLC'),
+        wText: t.wString(5, 'Hello い'),
+      },
+    );
+  });
+
+  test('definition is generated correctly', () => {
+    const definition = list1.definition;
+    expect(definition).toContain('VAR_GLOBAL');
+    expect(definition).toContain('END_VAR');
+
+    fs.writeFileSync('definiting.gvl', definition);
+    expect(fs.writeFileSync).toHaveBeenCalledWith('definiting.gvl', definition);
+  });
+
+  afterAll(() => {
+    list1.dispose();
+  })
+});
+
+
+describe('d2h function tests', () => {
+  test('positive number within range', () => {
+    expect(d2h(127, 4)).toBe('007f'); // 127 in hex is 7f
+  });
+
+  test('positive number at 16-bit boundary', () => {
+    expect(d2h(32767, 6)).toBe('007fff'); // 32767 in hex is 7fff
+  });
+
+  test('negative number within range', () => {
+    expect(d2h(-128, 4)).toBe('ff80'); // -128 in hex is ff80
+  });
+
+  test('negative number at 16-bit boundary', () => {
+    expect(d2h(-32768, 6)).toBe('ff8000'); // -32768 in hex is 8000 with sign bit
+  });
+
+  test('length compliance - larger length', () => {
+    expect(d2h(100, 6)).toHaveLength(6); // Testing length compliance
+  });
+
+  test('length compliance - smaller length', () => {
+    expect(d2h(1000, 2)).toHaveLength(2); // Testing truncation to smaller length
+  });
+
+  test('edge case - high bit set in positive number', () => {
+    expect(d2h(128, 4)).toBe('0080'); // 128 in hex is 80; check for correct handling of high bit
+  });
+
+  // Add more tests as needed for thorough coverage
+});
