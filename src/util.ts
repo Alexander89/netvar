@@ -63,11 +63,13 @@ const mkValue = (def: t.Types): { data: string; lng: number } => {
       break
     case 'STRING':
       lng = out.write(def.value, 'ascii')
-      lng = out.writeInt8(0, lng)
+      out.writeInt8(0, lng)
+      lng += 1;
       break
     case 'WSTRING':
       lng = out.write(def.value, 'utf16le')
-      lng = out.writeInt16LE(0, lng)
+      out.writeInt16LE(0, lng)
+      lng += 2;
       break
   }
 
@@ -76,6 +78,7 @@ const mkValue = (def: t.Types): { data: string; lng: number } => {
     lng,
   }
 }
+
 const mkLng = (lng: number): string => {
   const lngBuf = Buffer.alloc(2)
   lngBuf.writeUInt16LE(lng + 20) // 20 is for the header

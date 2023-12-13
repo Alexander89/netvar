@@ -1,5 +1,4 @@
 import { client, t } from './index'
-import fs from 'fs'
 import { d2h, packedMsgStr } from './util';
 import dgram from 'dgram';
 import { analyzeDataString } from './helper';
@@ -189,9 +188,31 @@ describe('test packed messages', () => {
     let actualData = analyzeDataString(msg, sortedIdx, vars);
 
     expect(actualData).toStrictEqual(expectedData);
-  }
-  );
+  });
 
+  test('packed test 2', () => {
+
+    var vars = {
+      text: t.string(4, 'abcd'),
+      wText: t.wString(5, 'efg い'),
+    };
+
+    const sortedIdx = Object.entries(vars)
+      .sort((a, b) => a[1].idx - b[1].idx)
+      .map(([name, _]) => name);
+
+    var listIdStr = d2h(1, 4);
+
+    let msg = packedMsgStr(listIdStr, 7204, sortedIdx, vars);
+    //              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9
+    //              |                 HEADER               |                    1                   2                   3
+    let expected = "002d5333000000000100000002002500241c00006162636400650066006700200044300000";
+
+    let expectedData = analyzeDataString(expected, sortedIdx, vars);
+    let actualData = analyzeDataString(msg, sortedIdx, vars);
+
+    expect(actualData).toStrictEqual(expectedData);
+  });
 });
 
 describe('definition tests', () => {

@@ -17,8 +17,15 @@ export function analyzeDataString(hexString: string, sortedIdx: string[], vars: 
     parsedData: {}
   };
 
+  var dataStart = 20; // Starting index of data
   // 1. Parse and verify the header fields
   const buffer = Buffer.from(hexString, 'hex');
+
+  if (buffer.length < dataStart) {
+    result.isValid = false;
+    result.errors.push("Message shorter than headersize");
+    return result;
+  }
 
   result.header = {
     identity: buffer.toString('ascii', 0, 4),
@@ -49,7 +56,6 @@ export function analyzeDataString(hexString: string, sortedIdx: string[], vars: 
   }
 
   // 3. Parse and validate the data fields
-  let dataStart = 20; // Starting index of data
 
   sortedIdx.forEach((key: string) => {
     const varType = vars[key].type;
@@ -75,16 +81,37 @@ export function analyzeDataString(hexString: string, sortedIdx: string[], vars: 
         dataLength = 8;
         result.parsedData[key] = buffer.readDoubleLE(dataStart);
         break;
-      case 'STRING':
-      case 'WSTRING':
-        // Find the null terminator to determine the string length
-        const nullIndex = buffer.indexOf(0, dataStart);
-        dataLength = nullIndex - dataStart;
-        const encoding = varType === 'STRING' ? 'ascii' : 'utf16le';
-        result.parsedData[key] = buffer.toString(encoding, dataStart, nullIndex);
+      case 'STRING': {
+        const nullIndex = buffer.indexOf(0, dataStart); // Find the first occurrence of 0 from the offset
+        if (nullIndex === -1) {
+          dataLength = 0;
+          result.errors.push(`No string termination found for ${key}`);
+        } else {
+          result.parsedData[key] = buffer.toString('ascii', dataStart, nullIndex);
+          dataLength = nullIndex - dataStart + 1;
+        }
         break;
+      }
+      case 'WSTRING': {
+        let nullIndex = -1;
+        for (let i = dataStart; i < buffer.length - 1; i += 2) {
+          if (buffer[i] === 0 && buffer[i + 1] === 0) {
+            nullIndex = i;
+            break;
+          }
+        }
+        if (nullIndex !== -1) {
+          result.parsedData[key] = buffer.toString('utf16le', dataStart, nullIndex);
+          dataLength = nullIndex - dataStart + 2; // +2 to include the two null bytes
+        } else {
+          dataLength = 0;
+          result.errors.push(`No string termination found for ${key}`);
+        }
+        break;
+      }
       default:
         dataLength = 0;
+        result.errors.push(`Unknown data type ${varType}`);
     }
 
     dataStart += dataLength;

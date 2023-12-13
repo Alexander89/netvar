@@ -164,18 +164,30 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
             bytesRead = 4
             break
           case 'STRING': {
-            const strdata = data.slice(offset)
-            const length = strdata.findIndex((c) => c === 0)
-            selVar.value = strdata.toString('ascii', offset, length === -1 ? undefined : length)
-            bytesRead = length === -1 ? 0 : length
-            break
+            const nullIndex = data.indexOf(0, offset); // Find the first occurrence of 0 from the offset
+            if (nullIndex === -1) {
+              bytesRead = 0;
+            } else {
+              selVar.value = data.toString('ascii', offset, nullIndex);
+              bytesRead = nullIndex - offset + 1; // +1 to include the null byte
+            }
+            break;
           }
           case 'WSTRING': {
-            const strdata = data.slice(offset)
-            const length = strdata.findIndex((c) => c === 0)
-            selVar.value = strdata.toString('utf16le', offset, length === -1 ? undefined : length)
-            bytesRead = length === -1 ? 0 : length
-            break
+            let nullIndex = -1;
+            for (let i = offset; i < data.length - 1; i += 2) {
+              if (data[i] === 0 && data[i + 1] === 0) {
+                nullIndex = i;
+                break;
+              }
+            }
+            if (nullIndex !== -1) {
+              selVar.value = data.toString('utf16le', offset, nullIndex);
+              bytesRead = nullIndex - offset + 2; // +2 to include the two null bytes
+            } else {
+              bytesRead = 0;
+            }
+            break;
           }
           case 'TIME':
             selVar.value = data.readInt32LE(offset)
