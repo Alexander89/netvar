@@ -2,7 +2,6 @@ import { client, t } from './index'
 import fs from 'fs'
 import { d2h, packedMsgStr } from './util';
 import dgram from 'dgram';
-import { wString } from './types';
 import { analyzeDataString } from './helper';
 
 jest.mock('fs', () => ({
@@ -190,7 +189,6 @@ describe('test packed messages', () => {
     let actualData = analyzeDataString(msg, sortedIdx, vars);
 
     expect(actualData).toStrictEqual(expectedData);
-    //expect(msg).toBe(expected);
   }
   );
 
