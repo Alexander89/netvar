@@ -1,5 +1,5 @@
 import { createSocket } from 'dgram'
-import { d2h } from './util'
+import { d2h, msgStr, packedMsgStr } from './util'
 import * as t from './types'
 
 export * as t from './types'
@@ -39,11 +39,12 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
     if (msg.length < 20) {
       return
     }
-    const data = msg.toString('hex')
-    const varId = parseInt(data.substring(18, 22), 16)
-    const listId = parseInt(data.substring(16, 18), 16)
+
+    const listId = msg.readUInt16LE(8);
+    const varId = msg.readUInt16LE(10);
 
     if (debug) {
+      const data = msg.toString('hex')
       console.log(`RECV (listId: ${listId}, from ${endpoint}:${write_port}): ${data}`)
     }
     listeners.filter((l) => l.listId == listId).forEach((l) => l.cb(varId, msg.subarray(20)))
@@ -59,54 +60,6 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
       console.log(`Send Buffer Size: ${sendBufferSize}`);
     }
   });
-
-  const mkValue = (def: t.Types): { data: string; lng: number } => {
-    const defaultBufferSize = 8;
-    let bufferSize = def.type === 'STRING' || def.type === 'WSTRING' ? 255 : defaultBufferSize;
-    const out = Buffer.alloc(bufferSize);
-    let lng = 0
-    switch (def.type) {
-      case 'BOOL':
-        return { data: def.value ? '01' : '00', lng: 1 }
-      case 'BYTE':
-        lng = out.writeInt8(def.value)
-        break
-      case 'WORD':
-        lng = out.writeUInt16LE(def.value)
-        break
-      case 'DWORD':
-        lng = out.writeUInt32LE(def.value)
-      case 'TIME':
-        lng = out.writeInt32LE(def.value)
-        break
-      case 'REAL':
-        lng = out.writeFloatLE(def.value)
-        break
-      case 'LREAL':
-        lng = out.writeDoubleLE(def.value)
-        break
-      case 'STRING':
-        lng = out.write(def.value, 'ascii')
-        lng = out.writeInt8(0, lng)
-        break
-      case 'WSTRING':
-        lng = out.write(def.value, 'utf16le')
-        lng = out.writeInt16LE(0, lng)
-        break
-    }
-
-    return {
-      data: out.subarray(0, lng).toString('hex'),
-      lng,
-    }
-  }
-  const mkLng = (lng: number): string => {
-    const lngBuf = Buffer.alloc(2)
-    lngBuf.writeUInt16LE(lng + 20) // 20 is for the header
-    return lngBuf.toString('hex')
-  }
-
-
 
   type Return<T extends { [key: string]: t.Types }> = {
     set: <K extends keyof T>(name: K, value: T[K]['value']) => boolean
@@ -162,14 +115,7 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
     }
 
     const sendPacked = (write_state: T) => {
-      const counter = d2h(getPackedSendCounter(), 4)
-      const vars = sortedIdx.map((name) => {
-        return mkValue(write_state[name])
-      })
-      const lng = d2h(vars.reduce((sum, current) => sum + current.lng, 0) + 20, 4) //add 20 bytes for the header
-      const data = vars.map((current, _lng) => current.data).join('')
-      const items = d2h(vars.length, 4)
-      const cmdStr = `${nodeId}00000000${listIdStr}0000${items}${lng}${counter}0000${data}`
+      const cmdStr = packedMsgStr(listIdStr, getPackedSendCounter(), sortedIdx, write_state);
       const cmd = Buffer.from(cmdStr, 'hex')
 
       if (debug) {
@@ -179,17 +125,7 @@ export const client = (endpoint: string = '255.255.255.255', clientopts?: Client
     }
 
     const send = (send: Partial<T>) => {
-      Object.entries(send)
-        .filter((toSend): toSend is [string, t.Types] => true)
-        .map(([name, toSend]) => {
-          const { data, lng } = mkValue(toSend)
-          return {
-            idx: d2h(toSend.idx, 2),
-            counter: d2h(getCounter(name), 2),
-            data,
-            lng: mkLng(lng),
-          }
-        })
+      msgStr(getCounter, send)
         .map(({ idx, lng, counter, data }) => {
           const str = `${nodeId}00000000${listIdStr}${idx}0100${lng}${counter}0000${data}`
           if (debug) {

@@ -1,7 +1,9 @@
 import { client, t } from './index'
 import fs from 'fs'
-import { d2h } from './util';
+import { d2h, packedMsgStr } from './util';
 import dgram from 'dgram';
+import { wString } from './types';
+import { analyzeDataString } from './helper';
 
 jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
@@ -138,6 +140,62 @@ describe('netVar client tests', () => {
   });
 });
 
+
+describe('test packed messages', () => {
+
+  test('packed test 1', () => {
+
+    var vars = {
+      Field0: t.word(1, 129),
+      Field1: t.byte(2),
+      Field2: t.byte(3),
+      Field3: t.byte(4),
+      Field4: t.byte(5),
+      Field5: t.byte(6),
+      Field6: t.byte(7),
+      Field7: t.byte(8),
+      Field8: t.byte(9),
+      Field9: t.byte(10),
+      Field10: t.byte(11),
+      Field11: t.byte(12),
+      Field12: t.byte(13),
+      Field13: t.byte(14),
+      Field14: t.byte(15),
+      Field15: t.word(16),
+      Field16: t.dWord(17),
+      Field17: t.dWord(18, 32),
+      Field18: t.dWord(19),
+      Field19: t.dWord(20),
+      Field20: t.dWord(21),
+      Field21: t.dWord(22),
+      Field22: t.dWord(23),
+      Field23: t.dWord(24, 50),
+      Field24: t.dWord(25),
+      Field25: t.dWord(26),
+      Field26: t.word(27),
+    };
+
+    const sortedIdx = Object.entries(vars)
+      .sort((a, b) => a[1].idx - b[1].idx)
+      .map(([name, _]) => name);
+
+    var listIdStr = d2h(1, 4);
+
+    let msg = packedMsgStr(listIdStr, 7204, sortedIdx, vars);
+    //              0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+    //              |                 HEADER               |          1                   2         3
+    let expected = "002d533300000000010000001b005000241c0000810000000000000000000000000000000000000000002000000000000000000000000000000000000000000000003200000000000000000000000000";
+
+    let expectedData = analyzeDataString(expected, sortedIdx, vars);
+    let actualData = analyzeDataString(msg, sortedIdx, vars);
+
+    expect(actualData).toStrictEqual(expectedData);
+    //expect(msg).toBe(expected);
+  }
+  );
+
+});
+
 describe('definition tests', () => {
   let netVar: ReturnType<typeof client>;
   let list1: any;
@@ -173,19 +231,19 @@ describe('definition tests', () => {
 
 describe('d2h function tests', () => {
   test('positive number within range', () => {
-    expect(d2h(127, 4)).toBe('007f'); // 127 in hex is 7f
+    expect(d2h(127, 4)).toBe('7f00'); // 127 in hex is 7f
   });
 
   test('positive number at 16-bit boundary', () => {
-    expect(d2h(32767, 6)).toBe('007fff'); // 32767 in hex is 7fff
+    expect(d2h(32767, 6)).toBe('ff7f00'); // 32767 in hex is 7fff
   });
 
   test('negative number within range', () => {
-    expect(d2h(-128, 4)).toBe('ff80'); // -128 in hex is ff80
+    expect(d2h(-128, 4)).toBe('80ff'); // -128 in hex is ff80
   });
 
   test('negative number at 16-bit boundary', () => {
-    expect(d2h(-32768, 6)).toBe('ff8000'); // -32768 in hex is 8000 with sign bit
+    expect(d2h(-32768, 6)).toBe('0080ff'); // -32768 in hex is 8000 with sign bit
   });
 
   test('length compliance - larger length', () => {
@@ -197,7 +255,7 @@ describe('d2h function tests', () => {
   });
 
   test('edge case - high bit set in positive number', () => {
-    expect(d2h(128, 4)).toBe('0080'); // 128 in hex is 80; check for correct handling of high bit
+    expect(d2h(128, 4)).toBe('8000'); // 128 in hex is 80; check for correct handling of high bit
   });
 
   // Add more tests as needed for thorough coverage
